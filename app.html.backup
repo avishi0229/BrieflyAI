@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Video Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Color palette */
+  --primary: #1D4ED8;
+  --primary-hover: #1E40AF;
+  --primary-light: #DBEAFE;
+  --primary-fg: #FFFFFF;
+
+  --bg: #F1F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFC;
+  --surface-3: #F0F4F8;
+
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+
+  --accent: #0EA5E9;
+  --accent-light: #E0F2FE;
+  --accent-fg: #FFFFFF;
+
+  --success: #16A34A;
+  --success-light: #DCFCE7;
+  --warning: #D97706;
+  --warning-light: #FEF3C7;
+  --error: #DC2626;
+  --error-light: #FEE2E2;
+
+  /* Typography */
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* Card style */
+  --card-radius: 10px;
+  --card-shadow: 0 1px 3px rgba(15,23,42,0.07), 0 1px 2px rgba(15,23,42,0.04);
+  --card-shadow-lg: 0 4px 12px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.05);
+  --card-padding: var(--sp-6);
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+* { box-sizing: border-box; }
+
+button, input, select, textarea { font-family: var(--font-sans); }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-subtle); }
+
+/* Skeleton animation */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.skeleton {
+  background: var(--border);
+  border-radius: 4px;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Typing indicator */
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+.typing-dot {
+  animation: bounce-dot 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+
+/* Spin */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.8s linear infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ─── Inline icon set (lucide-style, stroke based) ────────────────────────────
+
+function Icon({ children, size = 16, color, style, className }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color || "currentColor"}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={style}
+      className={className}
+    >
+      {children}
+    </svg>
+  );
+}
+
+const Video = (p) => <Icon {...p}><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" /><rect x="2" y="6" width="14" height="12" rx="2" /></Icon>;
+const Upload = (p) => <Icon {...p}><path d="M12 3v12" /><path d="m17 8-5-5-5 5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></Icon>;
+const Globe = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></Icon>;
+const Play = (p) => <Icon {...p}><polygon points="6 3 20 12 6 21 6 3" /></Icon>;
+const CheckCircle2 = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></Icon>;
+const Circle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /></Icon>;
+const Loader2 = (p) => <Icon {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></Icon>;
+const ChevronDown = (p) => <Icon {...p}><path d="m6 9 6 6 6-6" /></Icon>;
+const ChevronUp = (p) => <Icon {...p}><path d="m18 15-6-6-6 6" /></Icon>;
+const Copy = (p) => <Icon {...p}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></Icon>;
+const Check = (p) => <Icon {...p}><path d="M20 6 9 17l-5-5" /></Icon>;
+const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></Icon>;
+const MessageSquare = (p) => <Icon {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Icon>;
+const Send = (p) => <Icon {...p}><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /><path d="m21.854 2.147-10.94 10.939" /></Icon>;
+const RefreshCw = (p) => <Icon {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></Icon>;
+const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></Icon>;
+const FileText = (p) => <Icon {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></Icon>;
+const ListChecks = (p) => <Icon {...p}><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" /></Icon>;
+const GitFork = (p) => <Icon {...p}><circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" /><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" /><path d="M12 12v3" /></Icon>;
+const HelpCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></Icon>;
+const Pencil = (p) => <Icon {...p}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></Icon>;
+const X = (p) => <Icon {...p}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></Icon>;
+const Hash = (p) => <Icon {...p}><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /><line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" /></Icon>;
+const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>;
+const Zap = (p) => <Icon {...p}><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></Icon>;
+const Radio = (p) => <Icon {...p}><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" /><circle cx="12" cy="12" r="2" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" /></Icon>;
+
+// ─── Placeholder API functions (wire these to your backend) ──────────────────
+
+async function processSource(_source, _lang) {
+  // Replace with: fetch('/api/process', { method: 'POST', body: JSON.stringify({ source, lang }) })
+  await new Promise((r) => setTimeout(r, 500));
+  return PLACEHOLDER_RESULTS;
+}
+
+async function askQuestion(messages, question) {
+  // Replace with: fetch('/api/chat', { method: 'POST', body: JSON.stringify({ messages, question }) })
+  await new Promise((r) => setTimeout(r, 1200));
+  return `Based on the transcript, the answer to "${question}" relates to the key discussion points around the product roadmap and team alignment decisions covered in the meeting.`;
+}
+
+// ─── Placeholder data ────────────────────────────────────────────────────────
+
+const PLACEHOLDER_RESULTS = {
+  title: "Q3 Product Roadmap Review — Engineering All-Hands",
+  summary:
+    "The meeting covered the Q3 product roadmap with a focus on three major initiatives: the new onboarding flow redesign, the API v3 migration, and the mobile performance sprint. Engineering leads presented current velocity metrics, surfacing a 12% slowdown in backend response times that needs investigation before the September release. The team agreed to deprioritize the analytics dashboard rewrite until Q4. Key stakeholders from Design and Marketing aligned on the revised launch timeline of September 22nd.",
+  transcript: `[00:00] Sarah Chen: Alright, let's get started. We have a packed agenda today so I want to make sure we cover everything.
+
+[00:14] Marcus Webb: Quick heads-up — Priya is joining late, she's wrapping up the client call.
+
+[00:22] Sarah Chen: Got it. We can start with the velocity update from engineering. David, you want to kick that off?
+
+[00:29] David Okonkwo: Sure. So for the past two sprints, we've been averaging about 38 story points per sprint, which is down from our Q2 average of 43. The main culprit has been the API v3 migration work — it's more complex than estimated, especially the auth token refresh flow.
+
+[01:02] Sarah Chen: Is that blocking the mobile team?
+
+[01:07] David Okonkwo: It's creating some friction but not a hard block. Li Wei's team has workarounds in place, but they're adding technical debt we'll have to clean up.
+
+[01:18] Li Wei: Yeah, we've got three temporary adapters in place right now. It's manageable, but I'd really like a timeline commitment from the backend team.
+
+[01:30] David Okonkwo: We're targeting API v3 completion by August 31st. That should give mobile two weeks of integration time before the September 22nd launch.
+
+[01:42] Sarah Chen: Perfect. Let's lock that in. Now — onboarding flow. Anika, status?`,
+  actions: [
+    { id: "a1", text: "David to provide written API v3 timeline by Friday EOD", checked: false, owner: "David Okonkwo" },
+    { id: "a2", text: "Li Wei to document all three temporary adapters in Confluence", checked: false, owner: "Li Wei" },
+    { id: "a3", text: "Sarah to send revised launch date of Sep 22 to stakeholders", checked: true, owner: "Sarah Chen" },
+    { id: "a4", text: "Investigate 12% backend response time regression — assign to backend infra team", checked: false, owner: "Backend Infra" },
+    { id: "a5", text: "Deprioritize analytics dashboard rewrite — move to Q4 backlog", checked: false, owner: "Product" },
+  ],
+  decisions: [
+    { id: "d1", text: "API v3 migration target date: August 31st", context: "Provides mobile team with 2-week integration window" },
+    { id: "d2", text: "Product launch date confirmed: September 22nd", context: "Aligned with Marketing and Design sign-off" },
+    { id: "d3", text: "Analytics dashboard rewrite deprioritized to Q4", context: "Resource constraints and Q3 scope reduction" },
+    { id: "d4", text: "Temporary API adapters are acceptable short-term", context: "Technical debt to be addressed post-launch" },
+  ],
+  questions: [
+    "What is causing the 12% backend response time regression?",
+    "Will the auth token refresh flow complexity affect the mobile launch timeline if August 31st slips?",
+    "Who owns the technical debt cleanup for the three temporary adapters after launch?",
+    "What are the criteria for re-prioritizing the analytics dashboard in Q4 planning?",
+  ],
+};
+
+const PIPELINE_STEPS = [
+  { id: "fetch", label: "Fetching source", icon: <Radio size={14} /> },
+  { id: "transcribe", label: "Transcribing audio", icon: <FileText size={14} /> },
+  { id: "analyze", label: "Analyzing content", icon: <Zap size={14} /> },
+  { id: "extract", label: "Extracting insights", icon: <ListChecks size={14} /> },
+  { id: "ready", label: "Ready", icon: <CheckCircle2 size={14} /> },
+];
+
+// ─── Shared UI primitives ────────────────────────────────────────────────────
+
+function Card({ children, className = "", style = {} }) {
+  return (
+    <div
+      className={className}
+      style={{
+        background: "var(--surface)",
+        borderRadius: "var(--card-radius)",
+        boxShadow: "var(--card-shadow)",
+        border: "1px solid var(--border)",
+        padding: "var(--card-padding)",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Btn({
+  children, onClick, variant = "primary", disabled = false, loading = false,
+  size = "md", className = "", type = "button", style = {},
+}) {
+  const base = {
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    gap: "6px", fontFamily: "var(--font-sans)", fontWeight: 500,
+    borderRadius: "6px", border: "1px solid transparent",
+    cursor: disabled || loading ? "not-allowed" : "pointer",
+    opacity: disabled || loading ? 0.55 : 1,
+    transition: "background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s",
+    whiteSpace: "nowrap",
+  };
+  const sizes = { sm: "6px 12px", md: "8px 16px", lg: "11px 22px" };
+  const fontSizes = { sm: "13px", md: "14px", lg: "15px" };
+  const styles = {
+    primary: { background: "var(--primary)", color: "var(--primary-fg)", borderColor: "var(--primary)" },
+    secondary: { background: "var(--surface)", color: "var(--text)", borderColor: "var(--border-strong)" },
+    ghost: { background: "transparent", color: "var(--text-muted)", borderColor: "transparent" },
+    danger: { background: "var(--error-light)", color: "var(--error)", borderColor: "var(--error)" },
+  };
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      style={{ ...base, ...styles[variant], padding: sizes[size], fontSize: fontSizes[size], ...style }}
+      className={className}
+    >
+      {loading && <Loader2 size={14} className="spin" />}
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children, color = "default" }) {
+  const colors = {
+    default: { bg: "var(--surface-3)", fg: "var(--text-muted)" },
+    success: { bg: "var(--success-light)", fg: "var(--success)" },
+    warning: { bg: "var(--warning-light)", fg: "var(--warning)" },
+    error: { bg: "var(--error-light)", fg: "var(--error)" },
+    accent: { bg: "var(--accent-light)", fg: "var(--accent)" },
+  };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "4px",
+      background: colors[color].bg, color: colors[color].fg,
+      padding: "2px 8px", borderRadius: "4px",
+      fontSize: "12px", fontWeight: 500,
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function ErrorBanner({ message, onDismiss }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      background: "var(--error-light)", color: "var(--error)",
+      border: "1px solid var(--error)", borderRadius: "8px",
+      padding: "12px 16px", fontSize: "14px",
+    }}>
+      <AlertCircle size={16} style={{ flexShrink: 0 }} />
+      <span style={{ flex: 1 }}>{message}</span>
+      {onDismiss && (
+        <button onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--error)", padding: "2px" }}>
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function CopyBtn({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  return (
+    <Btn variant="ghost" size="sm" onClick={copy}>
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+      {copied ? "Copied" : "Copy"}
+    </Btn>
+  );
+}
+
+// ─── Header ──────────────────────────────────────────────────────────────────
+
+function Header({ onReset, phase }) {
+  return (
+    <header style={{
+      background: "var(--surface)",
+      borderBottom: "1px solid var(--border)",
+      height: "56px",
+      display: "flex", alignItems: "center",
+      padding: "0 var(--sp-8)",
+      position: "sticky", top: 0, zIndex: 100,
+      boxShadow: "0 1px 4px rgba(15,23,42,0.05)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+        <div style={{
+          width: "32px", height: "32px", borderRadius: "8px",
+          background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Video size={17} color="white" />
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: "15px", letterSpacing: "-0.02em", color: "var(--text)" }}>
+            AI Video Assistant
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--text-subtle)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            Transcription & Analysis
+          </div>
+        </div>
+      </div>
+      {phase !== "idle" && (
+        <Btn variant="secondary" size="sm" onClick={onReset}>
+          <RefreshCw size={13} />
+          New Session
+        </Btn>
+      )}
+    </header>
+  );
+}
+
+// ─── Input Panel ─────────────────────────────────────────────────────────────
+
+function InputPanel({ onProcess }) {
+  const [source, setSource] = useState("");
+  const [lang, setLang] = useState("en");
+  const [inputMode, setInputMode] = useState("url");
+  const [fileName, setFileName] = useState(null);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (f) { setFileName(f.name); setSource(f.name); }
+  };
+
+  const handleSubmit = () => {
+    if (!source.trim()) { setError("Please enter a YouTube URL or select a file."); return; }
+    if (inputMode === "url" && !source.includes(".") && !source.includes("youtu")) {
+      setError("Please enter a valid URL or switch to file upload."); return;
+    }
+    setError(null);
+    onProcess(source, lang);
+  };
+
+  const inputStyle = {
+    width: "100%", padding: "10px 14px",
+    border: "1px solid var(--border-strong)", borderRadius: "6px",
+    fontFamily: "var(--font-sans)", fontSize: "14px",
+    color: "var(--text)", background: "var(--surface)",
+    outline: "none", transition: "border-color 0.15s",
+  };
+
+  const selectStyle = {
+    ...inputStyle, width: "auto", cursor: "pointer",
+  };
+
+  return (
+    <div style={{ maxWidth: "640px", margin: "0 auto", padding: "var(--sp-12) var(--sp-6)" }}>
+      <div style={{ textAlign: "center", marginBottom: "var(--sp-8)" }}>
+        <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--text)", margin: 0 }}>
+          Analyze any video or audio
+        </h1>
+        <p style={{ color: "var(--text-muted)", marginTop: "var(--sp-2)", fontSize: "15px" }}>
+          Paste a YouTube link or upload a file to get a transcript, summary, and insights.
+        </p>
+      </div>
+
+      <Card>
+        {/* Mode toggle */}
+        <div style={{ display: "flex", gap: "var(--sp-1)", background: "var(--surface-3)", borderRadius: "6px", padding: "3px", marginBottom: "var(--sp-5)" }}>
+          {["url", "file"].map((m) => (
+            <button
+              key={m}
+              onClick={() => { setInputMode(m); setSource(""); setFileName(null); setError(null); }}
+              style={{
+                flex: 1, padding: "6px 12px", borderRadius: "5px", border: "none",
+                fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500,
+                cursor: "pointer", transition: "all 0.15s",
+                background: inputMode === m ? "var(--surface)" : "transparent",
+                color: inputMode === m ? "var(--text)" : "var(--text-muted)",
+                boxShadow: inputMode === m ? "var(--card-shadow)" : "none",
+              }}
+            >
+              {m === "url" ? <><Globe size={13} style={{ display: "inline", marginRight: "5px", verticalAlign: "middle" }} />YouTube URL</> : <><Upload size={13} style={{ display: "inline", marginRight: "5px", verticalAlign: "middle" }} />Upload File</>}
+            </button>
+          ))}
+        </div>
+
+        {/* Input */}
+        <div style={{ marginBottom: "var(--sp-4)" }}>
+          {inputMode === "url" ? (
+            <div style={{ position: "relative" }}>
+              <Globe size={15} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-subtle)" }} />
+              <input
+                style={{ ...inputStyle, paddingLeft: "36px" }}
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border-strong)")}
+              />
+            </div>
+          ) : (
+            <div
+              onClick={() => fileRef.current?.click()}
+              style={{
+                border: "2px dashed var(--border-strong)", borderRadius: "8px",
+                padding: "var(--sp-8) var(--sp-6)", textAlign: "center",
+                cursor: "pointer", transition: "border-color 0.15s, background 0.15s",
+                background: fileName ? "var(--primary-light)" : "var(--surface-2)",
+              }}
+              onMouseEnter={(e) => ((e.currentTarget.style.borderColor = "var(--primary)"))}
+              onMouseLeave={(e) => ((e.currentTarget.style.borderColor = "var(--border-strong)"))}
+            >
+              <Upload size={22} style={{ color: fileName ? "var(--primary)" : "var(--text-subtle)", marginBottom: "8px" }} />
+              <div style={{ fontSize: "14px", fontWeight: 500, color: fileName ? "var(--primary)" : "var(--text)" }}>
+                {fileName ?? "Click to select a file"}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-subtle)", marginTop: "4px" }}>
+                MP4, MP3, WAV, M4A, MOV — up to 500MB
+              </div>
+              <input ref={fileRef} type="file" accept="video/*,audio/*" style={{ display: "none" }} onChange={handleFile} />
+            </div>
+          )}
+        </div>
+
+        {/* Language & Process */}
+        <div style={{ display: "flex", gap: "var(--sp-3)", alignItems: "center" }}>
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="en">English</option>
+            <option value="hi">Hinglish</option>
+            <option value="auto">Auto-detect</option>
+          </select>
+          <Btn onClick={handleSubmit} size="lg" style={{ flex: 1 }}>
+            <Play size={16} />
+            Process
+          </Btn>
+        </div>
+
+        {error && (
+          <div style={{ marginTop: "var(--sp-4)" }}>
+            <ErrorBanner message={error} onDismiss={() => setError(null)} />
+          </div>
+        )}
+      </Card>
+
+      {/* Feature hints */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sp-4)",
+        marginTop: "var(--sp-6)",
+      }}>
+        {[
+          { icon: <FileText size={16} />, label: "Full transcript", desc: "Timestamped, searchable" },
+          { icon: <ListChecks size={16} />, label: "Action items", desc: "Auto-extracted tasks" },
+          { icon: <MessageSquare size={16} />, label: "RAG chat", desc: "Ask anything about it" },
+        ].map((f) => (
+          <div key={f.label} style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: "8px", padding: "var(--sp-4)", textAlign: "center",
+          }}>
+            <div style={{ color: "var(--primary)", marginBottom: "6px" }}>{f.icon}</div>
+            <div style={{ fontWeight: 600, fontSize: "13px" }}>{f.label}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{f.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Processing View ──────────────────────────────────────────────────────────
+
+function ProcessingView({ steps }) {
+  const activeIndex = steps.findIndex((s) => s.status === "active");
+  const progress = steps.filter((s) => s.status === "done").length / steps.length;
+
+  return (
+    <div style={{ maxWidth: "520px", margin: "0 auto", padding: "var(--sp-12) var(--sp-6)" }} className="fade-in">
+      <Card>
+        <div style={{ marginBottom: "var(--sp-6)" }}>
+          <h2 style={{ fontWeight: 700, fontSize: "18px", letterSpacing: "-0.02em", margin: 0 }}>
+            Processing your video
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
+            This typically takes 1–5 minutes depending on length.
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{
+          height: "4px", background: "var(--border)",
+          borderRadius: "2px", marginBottom: "var(--sp-6)", overflow: "hidden",
+        }}>
+          <div style={{
+            height: "100%", background: "var(--primary)",
+            borderRadius: "2px", width: `${progress * 100}%`,
+            transition: "width 0.6s ease",
+          }} />
+        </div>
+
+        {/* Steps */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-1)" }}>
+          {steps.map((step, i) => (
+            <div key={step.id} style={{
+              display: "flex", alignItems: "center", gap: "var(--sp-3)",
+              padding: "10px 12px", borderRadius: "7px",
+              background: step.status === "active" ? "var(--primary-light)" : "transparent",
+              transition: "background 0.2s",
+            }}>
+              <div style={{
+                width: "28px", height: "28px", borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                background: step.status === "done" ? "var(--success)" :
+                  step.status === "active" ? "var(--primary)" :
+                  step.status === "error" ? "var(--error)" : "var(--surface-3)",
+                color: step.status === "pending" ? "var(--text-subtle)" : "white",
+                transition: "background 0.25s",
+              }}>
+                {step.status === "active" ? (
+                  <Loader2 size={14} className="spin" />
+                ) : step.status === "done" ? (
+                  <Check size={13} />
+                ) : step.status === "error" ? (
+                  <AlertCircle size={13} />
+                ) : (
+                  <span style={{ fontSize: "11px", fontWeight: 600 }}>{i + 1}</span>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: "14px", fontWeight: step.status === "active" ? 600 : 400,
+                  color: step.status === "pending" ? "var(--text-subtle)" :
+                    step.status === "active" ? "var(--primary)" : "var(--text)",
+                }}>
+                  {step.label}
+                </div>
+              </div>
+              {step.status === "active" && (
+                <Badge color="accent">In progress</Badge>
+              )}
+              {step.status === "done" && (
+                <Badge color="success">Done</Badge>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {activeIndex >= 0 && (
+          <div style={{
+            marginTop: "var(--sp-6)", padding: "12px 14px",
+            background: "var(--surface-2)", borderRadius: "7px",
+            fontSize: "13px", color: "var(--text-muted)",
+            borderLeft: "3px solid var(--primary)",
+          }}>
+            <Loader2 size={13} className="spin" style={{ display: "inline", marginRight: "8px", verticalAlign: "middle" }} />
+            {steps[activeIndex]?.label}…
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── Results: Title Tab ───────────────────────────────────────────────────────
+
+function TitleTab({ title, onUpdate }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(title);
+  const ref = useRef(null);
+
+  useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+
+  const save = () => { onUpdate(val); setEditing(false); };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", marginBottom: "var(--sp-2)" }}>
+        <Hash size={18} style={{ color: "var(--primary)" }} />
+        <h3 style={{ margin: 0, fontWeight: 700, fontSize: "16px" }}>Generated Title</h3>
+      </div>
+      <Card>
+        {editing ? (
+          <div>
+            <textarea
+              ref={ref}
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
+              style={{
+                width: "100%", minHeight: "80px",
+                border: "1px solid var(--primary)", borderRadius: "6px",
+                padding: "12px", fontSize: "20px", fontWeight: 700,
+                fontFamily: "var(--font-sans)", color: "var(--text)",
+                resize: "vertical", outline: "none",
+                letterSpacing: "-0.02em", lineHeight: 1.3,
+              }}
+            />
+            <div style={{ display: "flex", gap: "var(--sp-2)", marginTop: "var(--sp-3)" }}>
+              <Btn onClick={save} size="sm"><Check size={13} />Save</Btn>
+              <Btn variant="secondary" size="sm" onClick={() => { setVal(title); setEditing(false); }}>
+                <X size={13} />Cancel
+              </Btn>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h2 style={{
+              margin: 0, fontSize: "22px", fontWeight: 700,
+              letterSpacing: "-0.025em", lineHeight: 1.3,
+              color: "var(--text)",
+            }}>
+              {val}
+            </h2>
+            <div style={{ display: "flex", gap: "var(--sp-2)", marginTop: "var(--sp-5)", flexWrap: "wrap" }}>
+              <Btn variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                <Pencil size={13} />Edit
+              </Btn>
+              <CopyBtn text={val} />
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── Results: Summary Tab ─────────────────────────────────────────────────────
+
+function SummaryTab({ summary }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+          <FileText size={18} style={{ color: "var(--primary)" }} />
+          <h3 style={{ margin: 0, fontWeight: 700, fontSize: "16px" }}>Summary</h3>
+        </div>
+        <CopyBtn text={summary} />
+      </div>
+      <Card>
+        <p style={{
+          margin: 0, fontSize: "15px", lineHeight: 1.75,
+          color: "var(--text)",
+        }}>
+          {summary}
+        </p>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Results: Transcript Tab ──────────────────────────────────────────────────
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function TranscriptTab({ transcript }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const lines = transcript.split("\n").filter(Boolean);
+  const filtered = search.trim()
+    ? lines.filter((l) => l.toLowerCase().includes(search.toLowerCase()))
+    : lines;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", flexWrap: "wrap" }}>
+        <FileText size={18} style={{ color: "var(--primary)" }} />
+        <h3 style={{ margin: 0, fontWeight: 700, fontSize: "16px", flex: 1 }}>Transcript</h3>
+        <div style={{ position: "relative" }}>
+          <Search size={13} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-subtle)" }} />
+          <input
+            placeholder="Search transcript…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "6px 10px 6px 30px", border: "1px solid var(--border-strong)",
+              borderRadius: "6px", fontSize: "13px", fontFamily: "var(--font-sans)",
+              width: "200px", outline: "none", color: "var(--text)",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border-strong)")}
+          />
+        </div>
+        <CopyBtn text={transcript} />
+        <Btn variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+          {collapsed ? "Expand" : "Collapse"}
+        </Btn>
+      </div>
+
+      {!collapsed && (
+        <Card className="fade-in">
+          <div style={{
+            maxHeight: "420px", overflowY: "auto",
+            display: "flex", flexDirection: "column", gap: "1px",
+          }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "var(--sp-8)", fontSize: "14px" }}>
+                No matches for "{search}"
+              </div>
+            ) : (
+              filtered.map((line, i) => {
+                const tsMatch = line.match(/^\[(\d+:\d+)\]\s*/);
+                const ts = tsMatch?.[1];
+                const text = ts ? line.replace(/^\[\d+:\d+\]\s*/, "") : line;
+                const highlighted = search.trim()
+                  ? text.replace(new RegExp(`(${escapeRegExp(search)})`, "gi"),
+                      "<mark style=\"background:var(--warning-light);color:var(--warning)\">$1</mark>")
+                  : text;
+                return (
+                  <div key={i} style={{
+                    display: "flex", gap: "var(--sp-4)", padding: "8px 4px",
+                    borderBottom: "1px solid var(--border)",
+                    fontSize: "14px",
+                  }}>
+                    {ts && (
+                      <span style={{
+                        fontFamily: "var(--font-mono)", fontSize: "12px",
+                        color: "var(--text-subtle)", flexShrink: 0,
+                        marginTop: "1px", minWidth: "40px",
+                      }}>
+                        {ts}
+                      </span>
+                    )}
+                    <span
+                      style={{ color: "var(--text)", lineHeight: 1.6 }}
+                      dangerouslySetInnerHTML={{ __html: highlighted }}
+                    />
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {search && (
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "var(--sp-3)" }}>
+              {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── Results: Actions Tab ─────────────────────────────────────────────────────
+
+function ActionsTab({ actions, onToggle }) {
+  const done = actions.filter((a) => a.checked).length;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+        <ListChecks size={18} style={{ color: "var(--primary)" }} />
+        <h3 style={{ margin: 0, fontWeight: 700, fontSize: "16px", flex: 1 }}>Action Items</h3>
+        <Badge color={done === actions.length ? "success" : "default"}>
+          {done}/{actions.length} done
+        </Badge>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+        {actions.map((item) => (
+          <Card key={item.id}>
+            <div style={{ display: "flex", gap: "var(--sp-4)", alignItems: "flex-start" }}>
+              <button
+                onClick={() => onToggle(item.id)}
+                style={{
+                  width: "20px", height: "20px", flexShrink: 0,
+                  border: `2px solid ${item.checked ? "var(--success)" : "var(--border-strong)"}`,
+                  borderRadius: "4px", cursor: "pointer",
+                  background: item.checked ? "var(--success)" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.15s", marginTop: "1px",
+                }}
+              >
+                {item.checked && <Check size={12} color="white" />}
+              </button>
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: "14px", color: item.checked ? "var(--text-muted)" : "var(--text)",
+                  textDecoration: item.checked ? "line-through" : "none",
+                  lineHeight: 1.5,
+                }}>
+                  {item.text}
+                </div>
+                {item.owner && (
+                  <div style={{ fontSize: "12px", color: "var(--text-subtle)", marginTop: "4px" }}>
+                    <Clock size={11} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
+                    Assigned to {item.owner}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Results: Decisions Tab ───────────────────────────────────────────────────
+
+function DecisionsTab({ decisions }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+        <GitFork size={18} style={{ color: "var(--primary)" }} />
+        <h3 style={{ margin: 0, fontWeight: 700, fontSize: "16px" }}>Key Decisions</h3>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+        {decisions.map((d, i) => (
+          <div key={d.id} style={{ display: "flex", gap: "var(--sp-4)" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+              <div style={{
+                width: "28px", height: "28px", borderRadius: "50%",
+                background: "var(--primary-light)", color: "var(--primary)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "12px", fontWeight: 700,
+              }}>
+                {i + 1}
+              </div>
+              {i < decisions.length - 1 && (
+                <div style={{ width: "1px", flex: 1, background: "var(--border)", marginTop: "4px" }} />
+              )}
+            </div>
+            <Card style={{ flex: 1, marginBottom: i < decisions.length - 1 ? "var(--sp-3)" : 0 }}>
+              <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--text)" }}>{d.text}</div>
+              {d.context && (
+                <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "6px", lineHeight: 1.5 }}>
+                  {d.context}
+                </div>
+              )}
+            </Card>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Results: Questions Tab ───────────────────────────────────────────────────
+
+function QuestionsTab({ questions }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+        <HelpCircle size={18} style={{ color: "var(--primary)" }} />
+        <h3 style={{ margin: 0, fontWeight: 700, fontSize: "16px" }}>Open Questions</h3>
+        <Badge color="warning">{questions.length} unresolved</Badge>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+        {questions.map((q, i) => (
+          <Card key={i}>
+            <div style={{ display: "flex", gap: "var(--sp-3)", alignItems: "flex-start" }}>
+              <div style={{
+                width: "24px", height: "24px", borderRadius: "50%",
+                background: "var(--warning-light)", color: "var(--warning)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "13px", fontWeight: 700, flexShrink: 0,
+              }}>
+                ?
+              </div>
+              <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.6, color: "var(--text)" }}>{q}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Chat Panel ───────────────────────────────────────────────────────────────
+
+function ChatPanel({ messages, onSend, loading }) {
+  const [input, setInput] = useState("");
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const send = () => {
+    if (!input.trim() || loading) return;
+    onSend(input.trim());
+    setInput("");
+  };
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", height: "100%",
+    }}>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "var(--sp-4)", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+        {messages.length === 0 ? (
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            color: "var(--text-muted)", textAlign: "center",
+            padding: "var(--sp-8)",
+          }}>
+            <MessageSquare size={32} style={{ color: "var(--border-strong)", marginBottom: "var(--sp-4)" }} />
+            <div style={{ fontWeight: 600, marginBottom: "4px" }}>Ask about this meeting</div>
+            <div style={{ fontSize: "13px" }}>
+              Ask anything — decisions, follow-ups, who said what.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-2)", marginTop: "var(--sp-5)", justifyContent: "center" }}>
+              {["What were the main blockers?", "Who owns the API migration?", "What's the launch date?"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => onSend(s)}
+                  style={{
+                    padding: "6px 12px", borderRadius: "16px",
+                    border: "1px solid var(--border-strong)",
+                    background: "var(--surface)", cursor: "pointer",
+                    fontSize: "12px", fontFamily: "var(--font-sans)",
+                    color: "var(--text-muted)", transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className="fade-in"
+              style={{
+                display: "flex",
+                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+              }}
+            >
+              {msg.role === "assistant" && (
+                <div style={{
+                  width: "28px", height: "28px", borderRadius: "50%",
+                  background: "var(--primary)", color: "white",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, marginRight: "var(--sp-2)", alignSelf: "flex-end",
+                }}>
+                  <Video size={13} />
+                </div>
+              )}
+              <div style={{
+                maxWidth: "80%",
+                padding: "10px 14px",
+                borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                background: msg.role === "user" ? "var(--primary)" : "var(--surface)",
+                color: msg.role === "user" ? "white" : "var(--text)",
+                border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
+                fontSize: "14px", lineHeight: 1.6,
+                boxShadow: "var(--card-shadow)",
+              }}>
+                {msg.content}
+              </div>
+            </div>
+          ))
+        )}
+        {loading && (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "var(--sp-2)" }}>
+            <div style={{
+              width: "28px", height: "28px", borderRadius: "50%",
+              background: "var(--primary)", color: "white",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <Video size={13} />
+            </div>
+            <div style={{
+              padding: "12px 16px", borderRadius: "14px 14px 14px 4px",
+              background: "var(--surface)", border: "1px solid var(--border)",
+              display: "flex", gap: "4px", alignItems: "center",
+            }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="typing-dot" style={{
+                  width: "6px", height: "6px", borderRadius: "50%",
+                  background: "var(--text-subtle)",
+                  animationDelay: `${i * 0.2}s`,
+                }} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{
+        padding: "var(--sp-4)",
+        borderTop: "1px solid var(--border)",
+        background: "var(--surface)",
+      }}>
+        <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="Ask a question about the meeting…"
+            disabled={loading}
+            style={{
+              flex: 1, padding: "10px 14px",
+              border: "1px solid var(--border-strong)", borderRadius: "8px",
+              fontFamily: "var(--font-sans)", fontSize: "14px",
+              color: "var(--text)", background: loading ? "var(--surface-2)" : "var(--surface)",
+              outline: "none", transition: "border-color 0.15s",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border-strong)")}
+          />
+          <button
+            onClick={send}
+            disabled={!input.trim() || loading}
+            style={{
+              width: "40px", height: "40px", borderRadius: "8px",
+              background: !input.trim() || loading ? "var(--border)" : "var(--primary)",
+              border: "none", cursor: !input.trim() || loading ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background 0.15s", flexShrink: 0,
+            }}
+          >
+            {loading ? <Loader2 size={16} color="white" className="spin" /> : <Send size={16} color="white" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Results Dashboard ────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: "title", label: "Title", icon: <Hash size={14} /> },
+  { id: "summary", label: "Summary", icon: <FileText size={14} /> },
+  { id: "transcript", label: "Transcript", icon: <FileText size={14} /> },
+  { id: "actions", label: "Actions", icon: <ListChecks size={14} /> },
+  { id: "decisions", label: "Decisions", icon: <GitFork size={14} /> },
+  { id: "questions", label: "Questions", icon: <HelpCircle size={14} /> },
+];
+
+function ResultsDashboard({ results, onUpdate }) {
+  const [activeTab, setActiveTab] = useState("summary");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const handleAsk = useCallback(async (q) => {
+    const userMsg = { id: Date.now().toString(), role: "user", content: q, ts: Date.now() };
+    setChatMessages((m) => [...m, userMsg]);
+    setChatLoading(true);
+    try {
+      const answer = await askQuestion(chatMessages, q);
+      const assistantMsg = { id: (Date.now() + 1).toString(), role: "assistant", content: answer, ts: Date.now() };
+      setChatMessages((m) => [...m, assistantMsg]);
+    } catch {
+      const errMsg = { id: (Date.now() + 1).toString(), role: "assistant", content: "Sorry, I couldn't process that. Please try again.", ts: Date.now() };
+      setChatMessages((m) => [...m, errMsg]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatMessages]);
+
+  const toggleAction = (id) => {
+    onUpdate({ actions: results.actions.map((a) => a.id === id ? { ...a, checked: !a.checked } : a) });
+  };
+
+  return (
+    <div className="fade-in" style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 340px",
+      gridTemplateRows: "1fr",
+      height: "100%",
+      gap: 0,
+    }}>
+      {/* Main content */}
+      <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Tabs */}
+        <div style={{
+          borderBottom: "1px solid var(--border)",
+          background: "var(--surface)",
+          padding: "0 var(--sp-6)",
+          display: "flex", gap: "var(--sp-1)",
+          overflowX: "auto",
+        }}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "14px 14px 12px",
+                background: "none", border: "none", cursor: "pointer",
+                fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500,
+                color: activeTab === tab.id ? "var(--primary)" : "var(--text-muted)",
+                borderBottom: activeTab === tab.id ? "2px solid var(--primary)" : "2px solid transparent",
+                transition: "color 0.15s, border-color 0.15s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.id === "actions" && (
+                <span style={{
+                  background: results.actions.filter((a) => !a.checked).length > 0 ? "var(--primary)" : "var(--success)",
+                  color: "white", borderRadius: "10px", padding: "0 6px",
+                  fontSize: "11px", fontWeight: 600,
+                }}>
+                  {results.actions.filter((a) => !a.checked).length || "✓"}
+                </span>
+              )}
+              {tab.id === "questions" && (
+                <span style={{
+                  background: "var(--warning)", color: "white",
+                  borderRadius: "10px", padding: "0 6px", fontSize: "11px", fontWeight: 600,
+                }}>
+                  {results.questions.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "var(--sp-6)" }}>
+          {activeTab === "title" && <TitleTab title={results.title} onUpdate={(t) => onUpdate({ title: t })} />}
+          {activeTab === "summary" && <SummaryTab summary={results.summary} />}
+          {activeTab === "transcript" && <TranscriptTab transcript={results.transcript} />}
+          {activeTab === "actions" && <ActionsTab actions={results.actions} onToggle={toggleAction} />}
+          {activeTab === "decisions" && <DecisionsTab decisions={results.decisions} />}
+          {activeTab === "questions" && <QuestionsTab questions={results.questions} />}
+        </div>
+      </div>
+
+      {/* Chat panel */}
+      <div style={{
+        borderLeft: "1px solid var(--border)",
+        background: "var(--surface-2)",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+      }}>
+        <div style={{
+          padding: "14px var(--sp-4)",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--surface)",
+          display: "flex", alignItems: "center", gap: "var(--sp-2)",
+        }}>
+          <MessageSquare size={15} style={{ color: "var(--primary)" }} />
+          <span style={{ fontWeight: 600, fontSize: "14px" }}>Chat</span>
+          <Badge color="accent">RAG</Badge>
+        </div>
+        <ChatPanel messages={chatMessages} onSend={handleAsk} loading={chatLoading} />
+      </div>
+    </div>
+  );
+}
+
+// ─── App root ─────────────────────────────────────────────────────────────────
+
+const STEP_DURATIONS = [1200, 2400, 1600, 1400, 600];
+
+function App() {
+  const [phase, setPhase] = useState("idle");
+  const [steps, setSteps] = useState(
+    PIPELINE_STEPS.map((s) => ({ ...s, status: "pending" }))
+  );
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
+
+  const runPipeline = useCallback(async (source, lang) => {
+    setPhase("processing");
+    setError(null);
+
+    const updateStep = (idx, status) => {
+      setSteps((prev) => prev.map((s, i) => i === idx ? { ...s, status } : s));
+    };
+
+    try {
+      for (let i = 0; i < PIPELINE_STEPS.length; i++) {
+        updateStep(i, "active");
+        await new Promise((r) => setTimeout(r, STEP_DURATIONS[i]));
+        updateStep(i, "done");
+      }
+      const data = await processSource(source, lang);
+      setResults(data);
+      setPhase("results");
+    } catch (e) {
+      setError("Processing failed. Please check your input and try again.");
+      setPhase("idle");
+      setSteps(PIPELINE_STEPS.map((s) => ({ ...s, status: "pending" })));
+    }
+  }, []);
+
+  const reset = () => {
+    setPhase("idle");
+    setResults(null);
+    setError(null);
+    setSteps(PIPELINE_STEPS.map((s) => ({ ...s, status: "pending" })));
+  };
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column",
+      height: "100%", background: "var(--bg)",
+      fontFamily: "var(--font-sans)",
+    }}>
+      <Header onReset={reset} phase={phase} />
+
+      {error && (
+        <div style={{ padding: "var(--sp-4) var(--sp-8)" }}>
+          <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        </div>
+      )}
+
+      <main style={{ flex: 1, overflow: phase === "results" ? "hidden" : "auto" }}>
+        {phase === "idle" && <InputPanel onProcess={runPipeline} />}
+        {phase === "processing" && <ProcessingView steps={steps} />}
+        {phase === "results" && results && (
+          <ResultsDashboard
+            results={results}
+            onUpdate={(partial) => setResults((r) => r ? { ...r, ...partial } : r)}
+          />
+        )}
+      </main>
+
+      {phase === "idle" && (
+        <footer style={{
+          borderTop: "1px solid var(--border)",
+          padding: "var(--sp-4) var(--sp-8)",
+          textAlign: "center",
+          fontSize: "12px",
+          color: "var(--text-subtle)",
+        }}>
+          AI Video Assistant — connect to your Python backend via <code style={{ fontFamily: "var(--font-mono)", background: "var(--surface-3)", padding: "1px 5px", borderRadius: "3px" }}>fetch('/api/process')</code>
+        </footer>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
