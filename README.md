@@ -1,7 +1,8 @@
 # 🎬 BrieflyAI
 
 **BrieflyAI** is an AI-powered meeting/video assistant that turns a YouTube video or a local audio/video file into a transcript, a clean summary, extracted action items, key decisions, open questions — and lets you **chat with the meeting** afterwards using a RAG (Retrieval-Augmented Generation) pipeline.
-🔗 Live Demo: https://brieflyyai.streamlit.app/
+
+### 🔗 Live Demo: [https://brieflyyai.streamlit.app/](https://brieflyyai.streamlit.app/)
 
 Give it a YouTube link or a file path, pick a language, and it will:
 
